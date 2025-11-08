@@ -74,7 +74,12 @@ npm run build:win
 npm run build:linux
 ```
 
-Built applications will be in the `dist/` directory.
+Build for all platforms at once:
+```bash
+npm run build:all
+```
+
+This will create installers for macOS, Windows, and Linux in the `dist/` directory.
 
 ## 📁 Project Structure
 
@@ -208,11 +213,18 @@ npm run build
 npm run build:mac    # macOS (DMG and ZIP)
 npm run build:win    # Windows (NSIS installer and portable)
 npm run build:linux  # Linux (AppImage and DEB)
+
+# Build for ALL platforms at once
+npm run build:all    # Creates installers for macOS, Windows, and Linux
 ```
 
 Built applications will be in the `dist/` directory.
 
-**Note**: The packaged app includes mcp-shark and all its dependencies, so the final package size will be larger. The UI is pre-built during the packaging process.
+**Note**: 
+- The packaged app includes mcp-shark and all its dependencies, so the final package size will be larger
+- The UI is pre-built during the packaging process
+- Building for all platforms requires the build tools for each platform (you can only build macOS on Mac, Windows on Windows, etc.)
+- For cross-platform building, consider using CI/CD services like GitHub Actions
 
 ## 📝 License
 

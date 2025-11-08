@@ -42,6 +42,19 @@ npm run build:win
 npm run build:linux
 ```
 
+### Build for ALL platforms at once:
+```bash
+npm run build:all
+```
+
+This will create installers for macOS, Windows, and Linux in the `dist/` directory.
+
+**Note**: Building for all platforms has limitations:
+- You can only build macOS on a Mac
+- You can only build Windows on Windows
+- You can build Linux on Linux or Mac
+- For true cross-platform building, use CI/CD (GitHub Actions, etc.)
+
 Built applications will be in the `dist/` directory.
 
 ## Troubleshooting

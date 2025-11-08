@@ -11,6 +11,7 @@
     "build:mac": "electron-builder --mac",
     "build:win": "electron-builder --win",
     "build:linux": "electron-builder --linux",
+    "build:all": "electron-builder --mac --win --linux",
     "postinstall": "electron-builder install-app-deps && npm run install:mcp-shark && npm run build:mcp-shark-ui",
     "install:mcp-shark": "cd node_modules/mcp-shark && npm run install:all || true",
     "build:mcp-shark-ui": "cd node_modules/mcp-shark/ui && npm run build || true"
@@ -38,8 +39,17 @@
     },
     "files": [
       "src/**/*",
+      "package.json",
       "node_modules/**/*"
     ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**/*",
+      "**/node_modules/@swc/core*/**/*",
+      "**/node_modules/*/build/**/*",
+      "**/node_modules/*/*.node"
+    ],
+    "extraResources": [],
     "mac": {
       "category": "public.app-category.developer-tools",
       "target": [
