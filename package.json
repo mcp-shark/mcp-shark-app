@@ -1,0 +1,64 @@
+{
+  "name": "mcp-shark-app",
+  "version": "1.0.0",
+  "description": "MCP Shark - Electron app for aggregating multiple MCP servers",
+  "main": "src/main/main.js",
+  "type": "module",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux",
+    "postinstall": "electron-builder install-app-deps && npm run install:mcp-shark && npm run build:mcp-shark-ui",
+    "install:mcp-shark": "cd node_modules/mcp-shark && npm run install:all || true",
+    "build:mcp-shark-ui": "cd node_modules/mcp-shark/ui && npm run build || true"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "electron",
+    "aggregator"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "mcp-shark": "github:mcp-shark/mcp-shark"
+  },
+  "build": {
+    "appId": "com.mcpshark.app",
+    "productName": "MCP Shark",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    }
+  }
+}
+
