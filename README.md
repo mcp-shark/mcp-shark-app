@@ -7,10 +7,13 @@ MCP Shark App is a cross-platform Electron application that provides a desktop i
 ## 🎯 Features
 
 - **🖥️ Desktop Application**: Native Electron app for Windows, macOS, and Linux
-- **📦 NPM Dependency**: Uses mcp-shark as an npm package (from GitHub)
-- **🔧 Easy Setup**: Simple npm install to get everything set up
+- **📦 NPM Dependency**: Uses mcp-shark as an npm package directly from GitHub
+- **🔧 Easy Setup**: Simple `npm install` to get everything set up automatically
 - **🔄 Process Management**: Automatically manages MCP server and UI server processes
 - **🌐 Integrated UI**: Built-in browser window for the MCP Shark monitoring interface
+- **🔨 Auto-Build**: Automatically builds the UI on first run if needed
+- **🔌 Port Management**: Automatically handles port conflicts and cleans up processes
+- **🧹 Clean Exit**: Comprehensive cleanup of all child processes on app exit
 
 ## 🚀 Quick Start
 
@@ -38,7 +41,8 @@ npm start
 
 The app will:
 - Install mcp-shark and all its dependencies (via npm)
-- Start the UI server
+- Automatically build the UI if not already built
+- Start the UI server on port 9853
 - Open the Electron window with the MCP Shark interface
 
 ## 🛠️ Development
@@ -49,7 +53,7 @@ The app will:
 npm run dev
 ```
 
-This runs the app with developer tools enabled and will re-download the release if needed.
+This runs the app with developer tools enabled. The Electron DevTools will be automatically opened for debugging.
 
 ### Building for Production
 
@@ -78,41 +82,71 @@ Built applications will be in the `dist/` directory.
 mcp-shark-app/
 ├── src/
 │   ├── main/              # Electron main process
-│   │   ├── main.js        # Main entry point
-│   │   ├── release-manager.js  # Handles GitHub release download
+│   │   ├── main.js        # Main entry point and window management
 │   │   ├── server-manager.js   # Manages MCP server process
-│   │   └── ui-manager.js       # Manages UI server process
+│   │   └── ui-manager.js       # Manages UI server process and builds
 │   └── preload/           # Preload scripts
-│       └── preload.js     # Exposes safe APIs to renderer
+│       └── preload.js     # Exposes safe IPC APIs to renderer
 ├── assets/                # App assets (icons, etc.)
-├── package.json
-└── README.md
+├── package.json           # Dependencies and build config
+├── SETUP.md               # Detailed setup instructions
+└── README.md              # This file
 ```
 
 ## 🔧 How It Works
 
 1. **Installation**: 
    - `npm install` downloads mcp-shark from GitHub and installs it as a dependency
-   - Post-install script runs `npm run install:all` in mcp-shark to install sub-dependencies
+   - Post-install script automatically:
+     - Installs Electron native dependencies
+     - Runs `npm run install:all` in mcp-shark to install sub-dependencies
+     - Builds the UI (`npm run build` in mcp-shark/ui)
 
 2. **Launch**:
    - App locates mcp-shark in `node_modules/mcp-shark`
-   - Starts the UI server from the npm package
-   - Opens the Electron window
+   - Checks if UI is built (looks for `dist/index.html`)
+   - If not built, automatically builds the UI using Vite
+   - Checks for port conflicts and automatically frees ports if needed
+   - Starts the UI server on port 9853
+   - Opens the Electron window pointing to `http://localhost:9853`
 
 3. **Process Management**:
-   - Electron main process manages both MCP server and UI server
-   - Automatically cleans up processes on app quit
+   - Electron main process manages both MCP server and UI server as child processes
+   - Automatically detects and kills child processes (including npm and node processes)
+   - Cleans up processes on ports 9851 and 9853 on app exit
    - Provides IPC APIs for the renderer to control servers
+   - Handles SIGINT, SIGTERM, and window close events for proper cleanup
 
 ## 📝 Configuration
 
-The app uses mcp-shark directly from `node_modules/mcp-shark`. To update to a newer version:
+The app uses mcp-shark directly from `node_modules/mcp-shark`. 
+
+### Updating mcp-shark
+
+To update to a newer version:
 
 ```bash
 npm update mcp-shark
 npm run install:mcp-shark
+npm run build:mcp-shark-ui
 ```
+
+Or reinstall everything:
+
+```bash
+rm -rf node_modules package-lock.json
+npm install
+```
+
+### Port Configuration
+
+The app uses fixed ports:
+- **UI Server**: Port 9853
+- **MCP Server**: Port 9851
+
+These ports are automatically managed - the app will free them if in use. To change ports, modify the port constants in:
+- `src/main/ui-manager.js` (UI server port)
+- `src/main/server-manager.js` (MCP server port)
 
 ## 🔌 API
 
@@ -135,32 +169,50 @@ await window.electronAPI.getMCPSharkVersion();
 ## 🐛 Troubleshooting
 
 ### App won't start
-- Check that Node.js 18+ is installed
-- Ensure you have internet connection (for first-time download)
-- Check console output for errors
+- Check that Node.js 18+ is installed: `node --version`
+- Ensure you have internet connection (for npm install)
+- Check Electron console or terminal output for errors
+- Verify mcp-shark was installed: `ls node_modules/mcp-shark`
 
 ### Package installation fails
 - Verify internet connection
 - Check that you have access to GitHub (for git-based npm install)
-- Try deleting `node_modules` and running `npm install` again
+- Try deleting `node_modules` and `package-lock.json`, then run `npm install` again
+- If mcp-shark install fails, try manually: `cd node_modules/mcp-shark && npm run install:all`
 
-### Server won't start
-- Check that npm dependencies were installed correctly
-- Verify the release was extracted properly
-- Check console logs for specific errors
+### UI build fails
+- Check that all dependencies are installed: `cd node_modules/mcp-shark/ui && npm list`
+- Try building manually: `cd node_modules/mcp-shark/ui && npm run build`
+- Check for Vite errors in the console output
+- Ensure Node.js version is 18 or higher
+
+### Port conflicts
+- The app automatically detects and frees ports 9851 and 9853
+- If issues persist, manually kill processes: `lsof -ti:9853 | xargs kill -9`
+- Check for other instances: `ps aux | grep -E "(npm|node.*server)"`
+
+### Processes not cleaning up on exit
+- The app should automatically clean up all child processes
+- If processes remain, they will be killed on next app start (port cleanup)
+- Manually clean up: `lsof -ti:9853,9851 | xargs kill -9`
 
 ## 📦 Distribution
 
 The app can be packaged for distribution using electron-builder:
 
 ```bash
+# Build for current platform
 npm run build
+
+# Build for specific platforms
+npm run build:mac    # macOS (DMG and ZIP)
+npm run build:win    # Windows (NSIS installer and portable)
+npm run build:linux  # Linux (AppImage and DEB)
 ```
 
-This creates platform-specific installers:
-- **macOS**: DMG and ZIP
-- **Windows**: NSIS installer and portable executable
-- **Linux**: AppImage and DEB package
+Built applications will be in the `dist/` directory.
+
+**Note**: The packaged app includes mcp-shark and all its dependencies, so the final package size will be larger. The UI is pre-built during the packaging process.
 
 ## 📝 License
 
