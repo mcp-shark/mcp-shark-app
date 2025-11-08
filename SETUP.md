@@ -25,6 +25,16 @@
 
 ## Building for Distribution
 
+### Before Building
+
+**Important**: Ensure native modules are rebuilt for Electron before bundling:
+
+```bash
+# If you just ran npm install, this already happened automatically
+# But to be safe, especially if you had errors:
+npm run rebuild:native
+```
+
 ### Build for current platform:
 ```bash
 npm run build
@@ -49,11 +59,13 @@ npm run build:all
 
 This will create installers for macOS, Windows, and Linux in the `dist/` directory.
 
-**Note**: Building for all platforms has limitations:
-- You can only build macOS on a Mac
-- You can only build Windows on Windows
-- You can build Linux on Linux or Mac
-- For true cross-platform building, use CI/CD (GitHub Actions, etc.)
+**Note**: 
+- Building for all platforms has limitations:
+  - You can only build macOS on a Mac
+  - You can only build Windows on Windows
+  - You can build Linux on Linux or Mac
+  - For true cross-platform building, use CI/CD (GitHub Actions, etc.)
+- **Native modules must be rebuilt for Electron** before bundling (runs automatically in `postinstall`, or run `npm run rebuild:native` manually)
 
 Built applications will be in the `dist/` directory.
 

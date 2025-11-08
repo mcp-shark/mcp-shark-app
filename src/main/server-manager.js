@@ -54,12 +54,24 @@ export async function startMCPServer(mcpSharkPath, configPath, onProcess) {
     }
 
     // Spawn the server process
+    // In packaged apps, use Electron's bundled node
+    const isPackaged = !!process.resourcesPath;
+    const nodeExecutable = isPackaged ? process.execPath : 'node';
+    
+    if (isPackaged) {
+      console.log('Using Electron bundled node for MCP server:', nodeExecutable);
+    }
+    
     // Set detached: false to ensure we can kill it and its children
-    mcpServerProcess = spawn('node', [serverScript, ...args], {
+    mcpServerProcess = spawn(nodeExecutable, [serverScript, ...args], {
       cwd: serverPath,
       stdio: ['ignore', 'pipe', 'pipe'],
-      shell: true,
+      shell: false, // Don't use shell to avoid PATH issues
       detached: false, // Keep attached so we can kill it and its children
+      env: {
+        ...process.env,
+        ELECTRON_RUN_AS_NODE: '1', // Tell Electron to run as Node.js
+      },
     });
 
     let output = '';

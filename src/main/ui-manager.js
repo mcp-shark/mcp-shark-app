@@ -41,22 +41,26 @@ export async function killProcessOnPort(port) {
   try {
     if (process.platform === 'win32') {
       // Windows: find and kill process on port
-      const { stdout } = await execAsync(`netstat -ano | findstr :${port}`);
-      const lines = stdout.trim().split('\n');
-      const pids = new Set();
-      lines.forEach(line => {
-        const match = line.match(/\s+(\d+)$/);
-        if (match) pids.add(match[1]);
-      });
-      for (const pid of pids) {
-        try {
-          await execAsync(`taskkill /F /PID ${pid}`);
-        } catch (e) {
-          // Process might not exist, ignore
+      try {
+        const { stdout } = await execAsync(`netstat -ano | findstr :${port}`);
+        const lines = stdout.trim().split('\n');
+        const pids = new Set();
+        lines.forEach(line => {
+          const match = line.match(/\s+(\d+)$/);
+          if (match) pids.add(match[1]);
+        });
+        for (const pid of pids) {
+          try {
+            await execAsync(`taskkill /F /PID ${pid}`);
+          } catch (e) {
+            // Process might not exist, ignore
+          }
         }
+      } catch (e) {
+        // No process found on port, that's fine
       }
     } else {
-      // Unix-like: use lsof to find and kill
+      // Unix-like (macOS, Linux): use lsof to find and kill
       try {
         const { stdout } = await execAsync(`lsof -ti:${port}`);
         const pids = stdout.trim().split('\n').filter(pid => pid);
@@ -110,7 +114,16 @@ export async function startUIServer(mcpSharkPath, onProcess) {
 
     // Check if dist is built, if not build it first
     const fs = await import('fs');
+    const isPackaged = !!process.resourcesPath;
+    
     if (!fs.existsSync(distPath)) {
+      if (isPackaged) {
+        // In packaged app, dist should already be built
+        reject(new Error(`UI dist not found at ${distPath}. The app may not have been built correctly.`));
+        return;
+      }
+      
+      // In development, build it
       console.log('UI not built, building...');
       try {
         await buildUI(uiPath);
@@ -172,55 +185,167 @@ async function buildUI(uiPath) {
   });
 }
 
-function startUIServerAfterBuild(mcpSharkPath, onProcess, resolve, reject) {
+async function startUIServerAfterBuild(mcpSharkPath, onProcess, resolve, reject) {
   const uiPath = path.join(mcpSharkPath, 'ui');
+  
+  // Verify UI path exists
+  const fs = await import('fs');
+  if (!fs.existsSync(uiPath)) {
+    reject(new Error(`UI path does not exist: ${uiPath}`));
+    return;
+  }
+  
+  const serverScript = path.join(uiPath, 'server.js');
+  if (!fs.existsSync(serverScript)) {
+    reject(new Error(`Server script does not exist: ${serverScript}`));
+    return;
+  }
+  
+  console.log(`Starting UI server from: ${uiPath}`);
+  console.log(`Server script: ${serverScript}`);
+  console.log(`Server script exists: ${fs.existsSync(serverScript)}`);
+  
+  // Check if dist folder exists
+  const distPath = path.join(uiPath, 'dist');
+  const distExists = fs.existsSync(distPath);
+  console.log(`Dist folder exists: ${distExists} at ${distPath}`);
+  
+  if (!distExists) {
+    const errorMsg = `UI dist folder not found at ${distPath}. The UI must be built before packaging.`;
+    console.error(errorMsg);
+    reject(new Error(errorMsg));
+    return;
+  }
 
-  // Use npm start which will run prestart (build) automatically
-  // Set detached: false and create a new process group to ensure we can kill children
-  uiServerProcess = spawn('npm', ['start'], {
+  // In packaged apps, use process.execPath (Electron's node) instead of system node
+  // This ensures we use the correct Node.js version bundled with Electron
+  // Works on all platforms: macOS, Windows, Linux
+  const isPackaged = !!process.resourcesPath;
+  const nodeExecutable = isPackaged ? process.execPath : 'node';
+  
+  if (isPackaged) {
+    console.log('Using Electron bundled node:', nodeExecutable);
+    console.log('Platform:', process.platform);
+    console.log('Resources path:', process.resourcesPath);
+  }
+
+  // Use node to run server.js directly
+  // In packaged app: use Electron's node (process.execPath) with ELECTRON_RUN_AS_NODE
+  // In development: use system node
+  // ELECTRON_RUN_AS_NODE works on all platforms
+  uiServerProcess = spawn(nodeExecutable, [serverScript], {
     cwd: uiPath,
     stdio: ['ignore', 'pipe', 'pipe'],
-    shell: true,
-    detached: false, // Keep attached so we can kill it and its children
+    shell: false, // Don't use shell to avoid PATH issues (works on all platforms)
+    detached: false,
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      ELECTRON_RUN_AS_NODE: '1', // Tell Electron to run as Node.js (cross-platform)
+    },
   });
 
   let output = '';
   let errorOutput = '';
+  let checkCount = 0;
+  const maxChecks = 20; // Increased to 10 seconds
+  const checkInterval = 500;
+  let checkServer = null;
+  let serverStarted = false;
 
   uiServerProcess.stdout.on('data', (data) => {
-    output += data.toString();
-    console.log(`[UI Server] ${data.toString()}`);
+    const text = data.toString();
+    output += text;
+    console.log(`[UI Server] ${text.trim()}`);
   });
 
   uiServerProcess.stderr.on('data', (data) => {
-    errorOutput += data.toString();
-    console.error(`[UI Server Error] ${data.toString()}`);
+    const text = data.toString();
+    errorOutput += text;
+    console.error(`[UI Server Error] ${text.trim()}`);
+    // Log immediately so we can see errors as they happen
+    if (text.includes('Error') || text.includes('error') || text.includes('Error:')) {
+      console.error('CRITICAL UI Server Error detected:', text);
+    }
   });
 
   uiServerProcess.on('error', (error) => {
-    console.error('Failed to start UI server:', error);
+    const errorMsg = `Failed to start UI server: ${error.message}\nPath: ${serverScript}\nNode: ${nodeExecutable}\nCWD: ${uiPath}`;
+    console.error(errorMsg);
+    console.error('Full error:', error);
     uiServerProcess = null;
-    reject(error);
+    if (checkServer) clearInterval(checkServer);
+    reject(new Error(errorMsg));
   });
 
   uiServerProcess.on('exit', (code, signal) => {
     console.log(`UI server exited with code ${code} and signal ${signal}`);
+    if (code !== 0 && code !== null && !serverStarted) {
+      console.error(`UI server exited with error code ${code}`);
+      console.error('Output:', output);
+      console.error('Error output:', errorOutput);
+      // If server exits with error before starting, reject the promise
+      if (checkServer) {
+        clearInterval(checkServer);
+      }
+      const errorMsg = `UI server exited with code ${code}.\nOutput: ${output}\nErrors: ${errorOutput}`;
+      console.error(errorMsg);
+      reject(new Error(errorMsg));
+    }
     uiServerProcess = null;
   });
 
   // Wait a bit to see if server starts successfully
-  setTimeout(() => {
-    if (uiServerProcess && !uiServerProcess.killed) {
-      onProcess(uiServerProcess);
-      resolve({
-        success: true,
-        message: 'UI server started successfully',
-        pid: uiServerProcess.pid,
-      });
-    } else {
-      reject(new Error(`UI server failed to start: ${errorOutput || output}`));
+  // Check multiple times to catch early exits
+  
+  // Set a timeout to ensure we don't wait forever
+  const timeout = setTimeout(() => {
+    if (checkServer) {
+      clearInterval(checkServer);
     }
-  }, 3000);
+    if (!uiServerProcess || uiServerProcess.killed) {
+      const errorMsg = `UI server did not start after ${maxChecks * checkInterval}ms.\nOutput: ${output}\nErrors: ${errorOutput}`;
+      console.error(errorMsg);
+      reject(new Error(errorMsg));
+    }
+  }, maxChecks * checkInterval);
+  
+  checkServer = setInterval(() => {
+    checkCount++;
+    
+    if (!uiServerProcess || uiServerProcess.killed) {
+      clearInterval(checkServer);
+      clearTimeout(timeout);
+      const errorMsg = `UI server process died before starting.\nOutput: ${output}\nErrors: ${errorOutput}`;
+      console.error(errorMsg);
+      reject(new Error(errorMsg));
+      return;
+    }
+    
+    // Check if server is actually running on the port
+    isUIServerRunning().then((isRunning) => {
+      if (isRunning) {
+        serverStarted = true;
+        clearInterval(checkServer);
+        clearTimeout(timeout);
+        onProcess(uiServerProcess);
+        console.log('UI server started successfully on port 9853');
+        resolve({
+          success: true,
+          message: 'UI server started successfully',
+          pid: uiServerProcess.pid,
+        });
+      } else if (checkCount >= maxChecks) {
+        clearInterval(checkServer);
+        clearTimeout(timeout);
+        const errorMsg = `UI server did not start after ${maxChecks * checkInterval}ms.\nOutput: ${output}\nErrors: ${errorOutput}`;
+        console.error(errorMsg);
+        reject(new Error(errorMsg));
+      }
+    }).catch((err) => {
+      console.error('Error checking if UI server is running:', err);
+    });
+  }, checkInterval);
 }
 
 /**

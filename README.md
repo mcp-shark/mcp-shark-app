@@ -15,11 +15,23 @@ MCP Shark App is a cross-platform Electron application that provides a desktop i
 - **🔌 Port Management**: Automatically handles port conflicts and cleans up processes
 - **🧹 Clean Exit**: Comprehensive cleanup of all child processes on app exit
 
+## 📋 Requirements
+
+### For Developers
+- **Node.js** 18+ (required for building and development)
+- **npm** (comes with Node.js)
+- **Git** (for installing mcp-shark from GitHub)
+
+### For End Users (Packaged App)
+- **No Node.js needed!** The packaged app includes everything and uses Electron's bundled Node.js runtime.
+
+See [REQUIREMENTS.md](./REQUIREMENTS.md) for detailed information.
+
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 18+ and npm (for development only)
 - Git (for cloning)
 
 ### Installation
@@ -33,11 +45,26 @@ cd mcp-shark-app
 ```bash
 npm install
 ```
+This automatically:
+- Installs all dependencies
+- Installs mcp-shark and its dependencies
+- **Rebuilds native modules for Electron** (via `rebuild:native`)
+- Builds the UI
 
 3. Run the app:
 ```bash
 npm start
 ```
+
+### Rebuilding Native Modules
+
+If you encounter `NODE_MODULE_VERSION` errors or update Electron/mcp-shark:
+
+```bash
+npm run rebuild:native
+```
+
+See [NATIVE-MODULES.md](./NATIVE-MODULES.md) for details.
 
 The app will:
 - Install mcp-shark and all its dependencies (via npm)
@@ -218,11 +245,21 @@ npm run build:linux  # Linux (AppImage and DEB)
 npm run build:all    # Creates installers for macOS, Windows, and Linux
 ```
 
+**Before Building**: Ensure native modules are rebuilt for Electron:
+
+```bash
+# If you just ran npm install, rebuild:native already ran automatically
+# But if you're unsure or had issues, run:
+npm run rebuild:native
+npm run build:mac
+```
+
 Built applications will be in the `dist/` directory.
 
 **Note**: 
 - The packaged app includes mcp-shark and all its dependencies, so the final package size will be larger
 - The UI is pre-built during the packaging process
+- **Native modules must be rebuilt for Electron** (done automatically in `postinstall`, or run `npm run rebuild:native` manually)
 - Building for all platforms requires the build tools for each platform (you can only build macOS on Mac, Windows on Windows, etc.)
 - For cross-platform building, consider using CI/CD services like GitHub Actions
 
