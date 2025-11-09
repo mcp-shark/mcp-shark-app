@@ -48,9 +48,17 @@
       "**/node_modules/better-sqlite3/**/*",
       "**/node_modules/@swc/core*/**/*",
       "**/node_modules/*/build/**/*",
-      "**/node_modules/*/*.node"
+      "**/node_modules/*/*.node",
+      "**/node_modules/mcp-shark/**/*",
+      "node_modules/mcp-shark/**/*"
     ],
-    "extraResources": [],
+    "extraResources": [
+      {
+        "from": "node_modules/mcp-shark",
+        "to": "app/node_modules/mcp-shark",
+        "filter": ["**/*"]
+      }
+    ],
     "mac": {
       "category": "public.app-category.developer-tools",
       "target": [

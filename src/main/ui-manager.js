@@ -2,6 +2,7 @@ import { spawn, exec } from 'child_process';
 import * as path from 'path';
 import { createConnection } from 'net';
 import { promisify } from 'util';
+import { ipcMain } from 'electron';
 
 const execAsync = promisify(exec);
 
@@ -93,7 +94,7 @@ export async function killProcessOnPort(port) {
 /**
  * Start the UI server
  */
-export async function startUIServer(mcpSharkPath, onProcess) {
+export async function startUIServer(mcpSharkPath, onProcess, debugLog = null) {
   return new Promise(async (resolve, reject) => {
     if (uiServerProcess) {
       resolve({ success: true, message: 'UI server already running' });
@@ -135,7 +136,7 @@ export async function startUIServer(mcpSharkPath, onProcess) {
       }
     }
 
-    startUIServerAfterBuild(mcpSharkPath, onProcess, resolve, reject);
+    startUIServerAfterBuild(mcpSharkPath, onProcess, resolve, reject, debugLog);
   });
 }
 
@@ -185,34 +186,49 @@ async function buildUI(uiPath) {
   });
 }
 
-async function startUIServerAfterBuild(mcpSharkPath, onProcess, resolve, reject) {
+async function startUIServerAfterBuild(mcpSharkPath, onProcess, resolve, reject, debugLog = null) {
   const uiPath = path.join(mcpSharkPath, 'ui');
+  
+  // Define log function to use debugLog callback or console as fallback
+  const log = debugLog || ((level, message) => {
+    if (level === 'error') {
+      console.error(`[UI Manager] ${message}`);
+    } else if (level === 'warn') {
+      console.warn(`[UI Manager] ${message}`);
+    } else {
+      console.log(`[UI Manager] ${message}`);
+    }
+  });
   
   // Verify UI path exists
   const fs = await import('fs');
   if (!fs.existsSync(uiPath)) {
-    reject(new Error(`UI path does not exist: ${uiPath}`));
+    const error = `UI path does not exist: ${uiPath}`;
+    log('error', error);
+    reject(new Error(error));
     return;
   }
   
   const serverScript = path.join(uiPath, 'server.js');
   if (!fs.existsSync(serverScript)) {
-    reject(new Error(`Server script does not exist: ${serverScript}`));
+    const error = `Server script does not exist: ${serverScript}`;
+    log('error', error);
+    reject(new Error(error));
     return;
   }
   
-  console.log(`Starting UI server from: ${uiPath}`);
-  console.log(`Server script: ${serverScript}`);
-  console.log(`Server script exists: ${fs.existsSync(serverScript)}`);
+  log('info', `Starting UI server from: ${uiPath}`);
+  log('info', `Server script: ${serverScript}`);
+  log('info', `Server script exists: ${fs.existsSync(serverScript)}`);
   
   // Check if dist folder exists
   const distPath = path.join(uiPath, 'dist');
   const distExists = fs.existsSync(distPath);
-  console.log(`Dist folder exists: ${distExists} at ${distPath}`);
+  log('info', `Dist folder exists: ${distExists} at ${distPath}`);
   
   if (!distExists) {
     const errorMsg = `UI dist folder not found at ${distPath}. The UI must be built before packaging.`;
-    console.error(errorMsg);
+    log('error', errorMsg);
     reject(new Error(errorMsg));
     return;
   }
@@ -233,17 +249,65 @@ async function startUIServerAfterBuild(mcpSharkPath, onProcess, resolve, reject)
   // In packaged app: use Electron's node (process.execPath) with ELECTRON_RUN_AS_NODE
   // In development: use system node
   // ELECTRON_RUN_AS_NODE works on all platforms
+  
+  // Prepare environment - ensure NODE_PATH includes the ui directory's node_modules
+  const env = {
+    ...process.env,
+    NODE_ENV: 'production',
+    ELECTRON_RUN_AS_NODE: '1', // Tell Electron to run as Node.js (cross-platform)
+  };
+  
+  // Add node_modules paths to NODE_PATH for module resolution
+  // This helps the server.js find its dependencies in the packaged app
+  const uiNodeModules = path.join(uiPath, 'node_modules');
+  const parentNodeModules = path.join(mcpSharkPath, 'node_modules');
+  const rootNodeModules = isPackaged 
+    ? path.join(process.resourcesPath, 'app', 'node_modules')
+    : path.join(path.dirname(mcpSharkPath), 'node_modules');
+  
+  const nodePaths = [
+    uiNodeModules,
+    parentNodeModules,
+    rootNodeModules,
+  ].filter(p => {
+    const exists = fs.existsSync(p);
+    if (!exists) {
+      console.log(`NODE_PATH candidate does not exist: ${p}`);
+    }
+    return exists;
+  });
+  
+  if (nodePaths.length > 0) {
+    env.NODE_PATH = nodePaths.join(path.delimiter);
+    log('info', `NODE_PATH set to: ${env.NODE_PATH}`);
+    log('info', `NODE_PATH components: ${JSON.stringify(nodePaths)}`);
+  } else {
+    log('warn', 'WARNING: No valid NODE_PATH found! Module resolution may fail.');
+  }
+  
+  // Also set __dirname equivalent for ES modules
+  // The server.js uses import.meta.url, so we need to ensure it can resolve modules
+  // Set PWD to uiPath to help with relative imports
+  env.PWD = uiPath;
+  
+  log('info', 'Spawning UI server process...');
+  log('info', `Executable: ${nodeExecutable}`);
+  log('info', `Script: ${serverScript}`);
+  log('info', `CWD: ${uiPath}`);
+  log('info', `NODE_ENV: ${env.NODE_ENV}`);
+  log('info', `ELECTRON_RUN_AS_NODE: ${env.ELECTRON_RUN_AS_NODE}`);
+  
   uiServerProcess = spawn(nodeExecutable, [serverScript], {
     cwd: uiPath,
     stdio: ['ignore', 'pipe', 'pipe'],
     shell: false, // Don't use shell to avoid PATH issues (works on all platforms)
     detached: false,
-    env: {
-      ...process.env,
-      NODE_ENV: 'production',
-      ELECTRON_RUN_AS_NODE: '1', // Tell Electron to run as Node.js (cross-platform)
-    },
+    env: env,
   });
+  
+  log('info', `UI server process spawned with PID: ${uiServerProcess.pid}`);
+  log('info', `Process spawn args: ${JSON.stringify([nodeExecutable, serverScript])}`);
+  log('info', `Process spawn options: cwd=${uiPath}, env keys=${Object.keys(env).length}`);
 
   let output = '';
   let errorOutput = '';
@@ -252,44 +316,70 @@ async function startUIServerAfterBuild(mcpSharkPath, onProcess, resolve, reject)
   const checkInterval = 500;
   let checkServer = null;
   let serverStarted = false;
+  
+  // Log immediately when process is created
+  log('info', 'UI server process created, setting up event handlers...');
 
   uiServerProcess.stdout.on('data', (data) => {
     const text = data.toString();
     output += text;
-    console.log(`[UI Server] ${text.trim()}`);
+    const lines = text.trim().split('\n');
+    lines.forEach(line => {
+      if (line.trim()) {
+        log('info', `[UI Server] ${line}`);
+      }
+    });
   });
 
   uiServerProcess.stderr.on('data', (data) => {
     const text = data.toString();
     errorOutput += text;
-    console.error(`[UI Server Error] ${text.trim()}`);
+    const lines = text.trim().split('\n');
+    lines.forEach(line => {
+      if (line.trim()) {
+        log('error', `[UI Server Error] ${line}`);
+      }
+    });
     // Log immediately so we can see errors as they happen
-    if (text.includes('Error') || text.includes('error') || text.includes('Error:')) {
-      console.error('CRITICAL UI Server Error detected:', text);
+    if (text.includes('Error') || text.includes('error') || text.includes('Error:') || text.includes('Cannot find module')) {
+      log('error', `CRITICAL UI Server Error detected: ${text}`);
     }
   });
 
   uiServerProcess.on('error', (error) => {
-    const errorMsg = `Failed to start UI server: ${error.message}\nPath: ${serverScript}\nNode: ${nodeExecutable}\nCWD: ${uiPath}`;
-    console.error(errorMsg);
-    console.error('Full error:', error);
+    const errorMsg = `Failed to spawn UI server process: ${error.message}\nPath: ${serverScript}\nNode: ${nodeExecutable}\nCWD: ${uiPath}\nError code: ${error.code}`;
+    log('error', '='.repeat(80));
+    log('error', 'UI SERVER SPAWN ERROR:');
+    log('error', errorMsg);
+    log('error', `Full error: ${JSON.stringify(error)}`);
+    log('error', `Error stack: ${error.stack}`);
+    log('error', '='.repeat(80));
     uiServerProcess = null;
     if (checkServer) clearInterval(checkServer);
     reject(new Error(errorMsg));
   });
 
   uiServerProcess.on('exit', (code, signal) => {
-    console.log(`UI server exited with code ${code} and signal ${signal}`);
+    log('info', '='.repeat(80));
+    log('info', `UI server exited with code ${code} and signal ${signal}`);
+    log('info', `Server started flag: ${serverStarted}`);
+    log('info', `Check count: ${checkCount}/${maxChecks}`);
     if (code !== 0 && code !== null && !serverStarted) {
-      console.error(`UI server exited with error code ${code}`);
-      console.error('Output:', output);
-      console.error('Error output:', errorOutput);
+      log('error', 'UI SERVER EXIT ERROR:');
+      log('error', `Exit code: ${code}`);
+      log('error', `Signal: ${signal}`);
+      log('error', `Process PID was: ${uiServerProcess.pid}`);
+      log('error', '--- Server Output ---');
+      log('error', output || '(no output)');
+      log('error', '--- Server Errors ---');
+      log('error', errorOutput || '(no errors)');
+      log('error', '='.repeat(80));
       // If server exits with error before starting, reject the promise
       if (checkServer) {
         clearInterval(checkServer);
       }
       const errorMsg = `UI server exited with code ${code}.\nOutput: ${output}\nErrors: ${errorOutput}`;
-      console.error(errorMsg);
+      log('error', errorMsg);
       reject(new Error(errorMsg));
     }
     uiServerProcess = null;
@@ -317,7 +407,7 @@ async function startUIServerAfterBuild(mcpSharkPath, onProcess, resolve, reject)
       clearInterval(checkServer);
       clearTimeout(timeout);
       const errorMsg = `UI server process died before starting.\nOutput: ${output}\nErrors: ${errorOutput}`;
-      console.error(errorMsg);
+      log('error', errorMsg);
       reject(new Error(errorMsg));
       return;
     }
@@ -329,7 +419,7 @@ async function startUIServerAfterBuild(mcpSharkPath, onProcess, resolve, reject)
         clearInterval(checkServer);
         clearTimeout(timeout);
         onProcess(uiServerProcess);
-        console.log('UI server started successfully on port 9853');
+        log('info', '✅ UI server started successfully on port 9853');
         resolve({
           success: true,
           message: 'UI server started successfully',
@@ -339,11 +429,11 @@ async function startUIServerAfterBuild(mcpSharkPath, onProcess, resolve, reject)
         clearInterval(checkServer);
         clearTimeout(timeout);
         const errorMsg = `UI server did not start after ${maxChecks * checkInterval}ms.\nOutput: ${output}\nErrors: ${errorOutput}`;
-        console.error(errorMsg);
+        log('error', errorMsg);
         reject(new Error(errorMsg));
       }
     }).catch((err) => {
-      console.error('Error checking if UI server is running:', err);
+      log('error', `Error checking if UI server is running: ${err.message}`);
     });
   }, checkInterval);
 }

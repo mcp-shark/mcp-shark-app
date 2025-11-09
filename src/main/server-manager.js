@@ -54,13 +54,90 @@ export async function startMCPServer(mcpSharkPath, configPath, onProcess) {
     }
 
     // Spawn the server process
-    // In packaged apps, use Electron's bundled node
+    // Always prefer Electron's executable if available (works in both dev and packaged)
+    // In packaged apps, we MUST use process.execPath
+    // In development, process.execPath is still the Electron executable, which works fine
     const isPackaged = !!process.resourcesPath;
-    const nodeExecutable = isPackaged ? process.execPath : 'node';
+    
+    // Always use process.execPath - it's the Electron executable in both dev and packaged
+    // This ensures we use the correct Node.js version that Electron bundles
+    const nodeExecutable = process.execPath;
+    
+    console.log('MCP Server Startup Debug:');
+    console.log(`  process.resourcesPath: ${process.resourcesPath || 'undefined'}`);
+    console.log(`  process.defaultApp: ${process.defaultApp}`);
+    console.log(`  process.execPath: ${process.execPath}`);
+    console.log(`  isPackaged: ${isPackaged}`);
+    console.log(`  nodeExecutable: ${nodeExecutable}`);
+    console.log(`  Executable exists: ${fs.existsSync(nodeExecutable)}`);
+    
+    // Verify executable exists
+    if (!fs.existsSync(nodeExecutable)) {
+      const error = `Electron executable not found at: ${nodeExecutable}\nResources path: ${process.resourcesPath || 'N/A'}\nThis should never happen - Electron executable should always exist.`;
+      console.error('='.repeat(80));
+      console.error('CRITICAL ERROR:', error);
+      console.error('='.repeat(80));
+      reject(new Error(error));
+      return;
+    }
     
     if (isPackaged) {
       console.log('Using Electron bundled node for MCP server:', nodeExecutable);
+      console.log('Platform:', process.platform);
+      console.log('Resources path:', process.resourcesPath);
+      console.log('Executable exists:', fs.existsSync(nodeExecutable));
     }
+    
+    // Prepare environment - ensure NODE_PATH includes the server directory's node_modules
+    const env = {
+      ...process.env,
+      NODE_ENV: 'production',
+      ELECTRON_RUN_AS_NODE: '1', // Tell Electron to run as Node.js
+    };
+    
+    // Add node_modules paths to NODE_PATH for module resolution
+    const serverNodeModules = path.join(serverPath, 'node_modules');
+    const parentNodeModules = path.join(mcpSharkPath, 'node_modules');
+    const rootNodeModules = isPackaged 
+      ? path.join(process.resourcesPath, 'app', 'node_modules')
+      : path.join(path.dirname(mcpSharkPath), 'node_modules');
+    
+    const nodePaths = [
+      serverNodeModules,
+      parentNodeModules,
+      rootNodeModules,
+    ].filter(p => {
+      const exists = fs.existsSync(p);
+      if (!exists && isPackaged) {
+        console.log(`NODE_PATH candidate does not exist: ${p}`);
+      }
+      return exists;
+    });
+    
+    if (nodePaths.length > 0) {
+      env.NODE_PATH = nodePaths.join(path.delimiter);
+      console.log(`NODE_PATH set to: ${env.NODE_PATH}`);
+    } else {
+      console.warn('WARNING: No valid NODE_PATH found! Module resolution may fail.');
+    }
+    
+    // Set PWD to serverPath to help with relative imports
+    env.PWD = serverPath;
+    
+    // Set a writable data directory for the database
+    // Use app.getPath('userData') which is writable in packaged apps
+    // Import app here to avoid circular dependencies
+    const { app } = await import('electron');
+    const userDataPath = app.getPath('userData');
+    env.MCP_SHARK_DATA_DIR = path.join(userDataPath, 'mcp-shark');
+    console.log(`MCP Shark data directory: ${env.MCP_SHARK_DATA_DIR}`);
+    
+    console.log('Spawning MCP server process...');
+    console.log(`Executable: ${nodeExecutable}`);
+    console.log(`Script: ${serverScript}`);
+    console.log(`CWD: ${serverPath}`);
+    console.log(`NODE_ENV: ${env.NODE_ENV}`);
+    console.log(`ELECTRON_RUN_AS_NODE: ${env.ELECTRON_RUN_AS_NODE}`);
     
     // Set detached: false to ensure we can kill it and its children
     mcpServerProcess = spawn(nodeExecutable, [serverScript, ...args], {
@@ -68,11 +145,10 @@ export async function startMCPServer(mcpSharkPath, configPath, onProcess) {
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: false, // Don't use shell to avoid PATH issues
       detached: false, // Keep attached so we can kill it and its children
-      env: {
-        ...process.env,
-        ELECTRON_RUN_AS_NODE: '1', // Tell Electron to run as Node.js
-      },
+      env: env,
     });
+    
+    console.log(`MCP server process spawned with PID: ${mcpServerProcess.pid}`);
 
     let output = '';
     let errorOutput = '';
@@ -88,9 +164,15 @@ export async function startMCPServer(mcpSharkPath, configPath, onProcess) {
     });
 
     mcpServerProcess.on('error', (error) => {
-      console.error('Failed to start MCP server:', error);
+      const errorMsg = `Failed to spawn MCP server process: ${error.message}\nPath: ${serverScript}\nNode: ${nodeExecutable}\nCWD: ${serverPath}\nError code: ${error.code}\nIs Packaged: ${isPackaged}\nResources Path: ${process.resourcesPath || 'N/A'}`;
+      console.error('='.repeat(80));
+      console.error('MCP SERVER SPAWN ERROR:');
+      console.error(errorMsg);
+      console.error(`Full error: ${JSON.stringify(error)}`);
+      console.error(`Error stack: ${error.stack}`);
+      console.error('='.repeat(80));
       mcpServerProcess = null;
-      reject(error);
+      reject(new Error(errorMsg));
     });
 
     mcpServerProcess.on('exit', (code, signal) => {
