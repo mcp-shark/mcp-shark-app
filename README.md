@@ -1,5 +1,8 @@
 # MCP Shark App
 
+> **⚠️ ALPHA VERSION - STILL TESTING**  
+> This is an alpha version of MCP Shark App. The software is still under active development and testing. Features may change, and there may be bugs or incomplete functionality. Use at your own risk.
+
 > **Electron desktop application for MCP Shark - Aggregate multiple Model Context Protocol (MCP) servers into a single unified interface**
 
 MCP Shark App is a cross-platform Electron application that provides a desktop interface for MCP Shark. It uses mcp-shark as an npm dependency, providing a seamless experience for aggregating and monitoring multiple MCP servers.

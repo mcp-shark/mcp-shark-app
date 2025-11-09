@@ -4,7 +4,14 @@ This directory contains application assets for the Electron app, such as icons a
 
 ## Application Icon
 
-Place your application icon here. The app will work without an icon, but adding one provides a better user experience.
+The application uses the MCP Shark logo (`icon.svg`) which is automatically converted to platform-specific formats during the build process.
+
+### Icon Files
+
+- `icon.svg` - Source SVG logo (512x512 viewBox)
+- `icon.png` - PNG version (512x512) - can be generated from SVG
+- `icon.icns` - macOS format (multi-resolution) - generated during build
+- `icon.ico` - Windows format (multi-resolution) - generated during build
 
 ### Recommended Formats and Sizes
 
@@ -16,13 +23,6 @@ Place your application icon here. The app will work without an icon, but adding 
   - Or 256x256 PNG (will be converted)
 - **Linux**: 
   - 512x512 PNG format
-
-### Icon Naming
-
-You can name your icon file:
-- `icon.png` - Will be automatically converted to platform-specific formats
-- `icon.icns` - macOS format
-- `icon.ico` - Windows format
 
 ### electron-builder Configuration
 
@@ -51,4 +51,3 @@ You can also place other assets here that need to be bundled with the applicatio
 - License files
 - Documentation files
 - Other static resources
-
