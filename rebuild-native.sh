@@ -23,5 +23,21 @@ if [ -d "node_modules/mcp-shark/mcp-server/node_modules/better-sqlite3" ]; then
   cd ../../../../..
 fi
 
+# Rebuild better-sqlite3 in mcp-shark/mcp-server
+if [ -d "node_modules/mcp-shark/mcp-server/node_modules/mcp-shark-common/node_modules/better-sqlite3" ]; then
+  echo "Rebuilding better-sqlite3 in mcp-shark/mcp-server/node_modules/mcp-shark-common..."
+  cd node_modules/mcp-shark/mcp-server/node_modules/mcp-shark-common/node_modules/better-sqlite3
+  npx electron-rebuild -v "$ELECTRON_VERSION" -f -w better-sqlite3 || npm rebuild better-sqlite3 --build-from-source || true
+  cd ../../../../..
+fi
+
+if [ -d "node_modules/mcp-shark/ui/node_modules/mcp-shark-common/node_modules/better-sqlite3" ]; then
+  echo "Rebuilding better-sqlite3 in mcp-shark/ui/node_modules/mcp-shark-common..."
+  cd node_modules/mcp-shark/ui/node_modules/mcp-shark-common/node_modules/better-sqlite3
+  npx electron-rebuild -v "$ELECTRON_VERSION" -f -w better-sqlite3 || npm rebuild better-sqlite3 --build-from-source || true
+  cd ../../../../..
+fi
+
+
 echo "Native module rebuild complete!"
 
