@@ -125,12 +125,10 @@ export async function startMCPServer(mcpSharkPath, configPath, onProcess) {
     env.PWD = serverPath;
     
     // Set a writable data directory for the database
-    // Use app.getPath('userData') which is writable in packaged apps
-    // Import app here to avoid circular dependencies
-    const { app } = await import('electron');
-    const userDataPath = app.getPath('userData');
-    env.MCP_SHARK_DATA_DIR = path.join(userDataPath, 'mcp-shark');
-    console.log(`MCP Shark data directory: ${env.MCP_SHARK_DATA_DIR}`);
+    // Use OS temp directory (always writable, simpler than app.getPath)
+    const os = await import('os');
+    env.MCP_SHARK_DATA_DIR = os.tmpdir();
+    console.log(`MCP Shark data directory (OS temp): ${env.MCP_SHARK_DATA_DIR}`);
     
     console.log('Spawning MCP server process...');
     console.log(`Executable: ${nodeExecutable}`);
