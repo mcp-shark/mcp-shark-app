@@ -1,15 +1,54 @@
 # Assets
 
-This directory contains application assets like icons.
+This directory contains application assets for the Electron app, such as icons and other resources.
 
-## Icon
+## Application Icon
 
-Place your application icon here as `icon.png` (or `.ico` for Windows, `.icns` for macOS).
+Place your application icon here. The app will work without an icon, but adding one provides a better user experience.
 
-For now, the app will work without an icon, but you can add one later for a better user experience.
+### Recommended Formats and Sizes
 
-Recommended sizes:
-- **macOS**: 512x512 PNG or ICNS format
-- **Windows**: 256x256 ICO format  
-- **Linux**: 512x512 PNG format
+- **macOS**: 
+  - ICNS format (multi-resolution)
+  - Or 512x512 PNG (will be converted)
+- **Windows**: 
+  - ICO format (multi-resolution)
+  - Or 256x256 PNG (will be converted)
+- **Linux**: 
+  - 512x512 PNG format
+
+### Icon Naming
+
+You can name your icon file:
+- `icon.png` - Will be automatically converted to platform-specific formats
+- `icon.icns` - macOS format
+- `icon.ico` - Windows format
+
+### electron-builder Configuration
+
+The icon is automatically detected by electron-builder. To specify a custom icon path, update the `build` section in `package.json`:
+
+```json
+{
+  "build": {
+    "mac": {
+      "icon": "assets/icon.icns"
+    },
+    "win": {
+      "icon": "assets/icon.ico"
+    },
+    "linux": {
+      "icon": "assets/icon.png"
+    }
+  }
+}
+```
+
+## Other Assets
+
+You can also place other assets here that need to be bundled with the application, such as:
+- Splash screens
+- License files
+- Documentation files
+- Other static resources
 

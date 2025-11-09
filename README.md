@@ -263,6 +263,11 @@ Built applications will be in the `dist/` directory.
 - Building for all platforms requires the build tools for each platform (you can only build macOS on Mac, Windows on Windows, etc.)
 - For cross-platform building, consider using CI/CD services like GitHub Actions
 
+## 🔗 Related Projects
+
+- **[mcp-shark](../mcp-shark)**: The core MCP Shark server and UI components
+- **[mcp-shark-common](../mcp-shark-common)**: Shared utilities for database and configuration management
+
 ## 📝 License
 
 ISC
