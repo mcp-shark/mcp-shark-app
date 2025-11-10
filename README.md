@@ -111,6 +111,55 @@ npm run build:all
 
 This will create installers for macOS, Windows, and Linux in the `dist/` directory.
 
+### 🍎 Building macOS App Locally
+
+To build the macOS app on your Mac:
+
+1. **Prerequisites:**
+   - macOS (required - you can only build macOS apps on macOS)
+   - Node.js 18+ and npm
+   - Git (for GitHub dependencies)
+
+2. **Install Dependencies:**
+   ```bash
+   npm install
+   ```
+   This automatically installs all dependencies, rebuilds native modules for Electron, and builds the UI.
+
+3. **Build the macOS App:**
+   ```bash
+   npm run build:mac
+   ```
+
+4. **Output Files:**
+   After building, you'll find these files in the `dist/` directory:
+   - `dist/mac/MCP Shark.app` - The app bundle (double-click to run)
+   - `dist/mac/MCP Shark-1.0.0-mac.zip` - ZIP archive
+   - `dist/MCP Shark-1.0.0.dmg` - DMG installer
+
+5. **Run the Built App:**
+   ```bash
+   # Option 1: From terminal
+   open "dist/mac/MCP Shark.app"
+   
+   # Option 2: Double-click in Finder
+   # Navigate to dist/mac/ and double-click MCP Shark.app
+   ```
+
+6. **First Run (Gatekeeper):**
+   If you see "MCP Shark is damaged" when opening:
+   - **Right-click** the app → Select **"Open"** → Click **"Open"** in the dialog
+   - Or run: `xattr -cr "dist/mac/MCP Shark.app"` in terminal
+   - See [MACOS-GATEKEEPER-FIX.md](./MACOS-GATEKEEPER-FIX.md) for details
+
+**Quick Build Command:**
+```bash
+# Full build from scratch
+npm install && npm run build:mac && open "dist/mac/MCP Shark.app"
+```
+
+For more detailed build instructions and troubleshooting, see [BUILD.md](./BUILD.md).
+
 ## 📁 Project Structure
 
 ```
@@ -265,6 +314,17 @@ Built applications will be in the `dist/` directory.
 - **Native modules must be rebuilt for Electron** (done automatically in `postinstall`, or run `npm run rebuild:native` manually)
 - Building for all platforms requires the build tools for each platform (you can only build macOS on Mac, Windows on Windows, etc.)
 - For cross-platform building, consider using CI/CD services like GitHub Actions
+
+### ⚠️ macOS Gatekeeper Warning
+
+**Important for macOS users:** When downloading the app, macOS may show "MCP Shark is damaged and can't be opened". This is **not** because the app is damaged—it's macOS Gatekeeper blocking unsigned applications.
+
+**Quick Fix:**
+1. **Right-click** on the app → Select **"Open"** → Click **"Open"** in the security dialog
+2. Or run: `xattr -cr "/path/to/MCP Shark.app"` in terminal
+3. Or use the helper script: `./scripts/fix-gatekeeper.sh "/path/to/MCP Shark.app"`
+
+**For detailed instructions, see:** [MACOS-GATEKEEPER-FIX.md](./MACOS-GATEKEEPER-FIX.md)
 
 ## 🔗 Related Projects
 

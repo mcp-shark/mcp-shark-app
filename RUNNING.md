@@ -58,8 +58,15 @@ This is because the app isn't code-signed. For distribution, you'll need to code
 ## Troubleshooting
 
 ### "App is damaged" error
-- Right-click → Open (bypasses Gatekeeper)
-- Or: `xattr -cr "dist/mac/MCP Shark.app"` in terminal
+
+This is a macOS Gatekeeper security feature. The app isn't actually damaged—it's just unsigned.
+
+**Quick Fix:**
+1. **Right-click** on `MCP Shark.app` → Select **"Open"** → Click **"Open"** in the dialog
+2. Or run: `xattr -cr "dist/mac/MCP Shark.app"` in terminal
+3. Or use the helper script: `./scripts/fix-gatekeeper.sh "dist/mac/MCP Shark.app"`
+
+**For more details, see:** [MACOS-GATEKEEPER-FIX.md](./MACOS-GATEKEEPER-FIX.md)
 
 ### App won't start
 - Check the debug logs (should appear automatically if there's an error)
