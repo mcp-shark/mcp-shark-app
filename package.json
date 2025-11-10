@@ -12,6 +12,7 @@
     "build:win": "electron-builder --win",
     "build:linux": "electron-builder --linux",
     "build:all": "electron-builder --mac --win --linux",
+    "generate-icon": "bash generate-icon.sh",
     "postinstall": "electron-builder install-app-deps && npm run install:mcp-shark && npm run rebuild:native && npm run build:mcp-shark-ui",
     "install:mcp-shark": "cd node_modules/mcp-shark && npm run install:all || true",
     "rebuild:native": "bash rebuild-native.sh || echo 'Rebuild skipped'",
