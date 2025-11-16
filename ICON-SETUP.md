@@ -6,7 +6,8 @@ This guide explains how to set up the app icons for Windows, macOS, and Linux us
 
 1. **Copy the source image:**
    ```bash
-   cp /Users/ruwan/dev/mcp-shark-site/public/og-image.png assets/og-image-source.png
+   # Replace with the path to your source image
+   cp /path/to/your/og-image.png assets/og-image-source.png
    ```
 
 2. **Generate the icon:**

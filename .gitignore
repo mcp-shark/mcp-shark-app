@@ -23,6 +23,16 @@ Thumbs.db
 # App data
 .mcp-shark-app/
 
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# Local configuration overrides
+package.local.json
+config.local.json
+
 # Temporary files
 *.tmp
 temp/
