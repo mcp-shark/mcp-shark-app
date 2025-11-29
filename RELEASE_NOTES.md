@@ -1,4 +1,4 @@
-# 🦈 MCP Shark App v1.2.0 - Alpha Release
+# 🦈 MCP Shark App v1.3.0 - Alpha Release
 
 > ⚠️ **ALPHA VERSION** - This is an alpha release. The software is under active development and testing. Features may change, and there may be bugs. Use at your own risk.
 
@@ -20,20 +20,20 @@ MCP Shark App is a **cross-platform desktop application** for MCP Shark. It prov
 
 ### macOS (ARM64)
 
-- **[MCP.Shark-1.2.0-arm64.dmg](https://github.com/mcp-shark/mcp-shark-app/releases/download/v1.2.0/MCP.Shark-1.2.0-arm64.dmg)** - DMG installer
-- **[MCP.Shark-1.2.0-arm64-mac.zip](https://github.com/mcp-shark/mcp-shark-app/releases/download/v1.2.0/MCP.Shark-1.2.0-arm64-mac.zip)** - ZIP archive
+- **[MCP.Shark-1.3.0-arm64.dmg](https://github.com/mcp-shark/mcp-shark-app/releases/download/v1.3.0/MCP.Shark-1.3.0-arm64.dmg)** - DMG installer
+- **[MCP.Shark-1.3.0-arm64-mac.zip](https://github.com/mcp-shark/mcp-shark-app/releases/download/v1.3.0/MCP.Shark-1.3.0-arm64-mac.zip)** - ZIP archive
 
 **⚠️ macOS Gatekeeper Warning**: If you see "MCP Shark is damaged", right-click the app → Select "Open" → Click "Open" in the dialog. See [MACOS-GATEKEEPER-FIX.md](./MACOS-GATEKEEPER-FIX.md) for details.
 
 ### Windows (ARM64)
 
-- **[MCP.Shark.Setup.1.2.0.exe](https://github.com/mcp-shark/mcp-shark-app/releases/download/v1.2.0/MCP.Shark.Setup.1.2.0.exe)** - NSIS installer
-- **[MCP.Shark.1.2.0.exe](https://github.com/mcp-shark/mcp-shark-app/releases/download/v1.2.0/MCP.Shark.1.2.0.exe)** - Portable executable
+- **[MCP.Shark.Setup.1.3.0.exe](https://github.com/mcp-shark/mcp-shark-app/releases/download/v1.3.0/MCP.Shark.Setup.1.3.0.exe)** - NSIS installer
+- **[MCP.Shark.1.3.0.exe](https://github.com/mcp-shark/mcp-shark-app/releases/download/v1.3.0/MCP.Shark.1.3.0.exe)** - Portable executable
 
 ### Linux (ARM64)
 
-- **[MCP.Shark-1.2.0-arm64.AppImage](https://github.com/mcp-shark/mcp-shark-app/releases/download/v1.2.0/MCP.Shark-1.2.0-arm64.AppImage)** - AppImage (make executable: `chmod +x`)
-- **[mcp-shark-app_1.2.0_arm64.deb](https://github.com/mcp-shark/mcp-shark-app/releases/download/v1.2.0/mcp-shark-app_1.2.0_arm64.deb)** - Debian package
+- **[MCP.Shark-1.3.0-arm64.AppImage](https://github.com/mcp-shark/mcp-shark-app/releases/download/v1.3.0/MCP.Shark-1.3.0-arm64.AppImage)** - AppImage (make executable: `chmod +x`)
+- **[mcp-shark-app_1.3.0_arm64.deb](https://github.com/mcp-shark/mcp-shark-app/releases/download/v1.3.0/mcp-shark-app_1.3.0_arm64.deb)** - Debian package
 
 ## 🚀 Quick Start
 
@@ -82,4 +82,3 @@ MCP Shark App is a **cross-platform desktop application** for MCP Shark. It prov
 ---
 
 **Built with ❤️ using Electron and MCP Shark**
-
